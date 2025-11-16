@@ -7,6 +7,8 @@ import com.quiz.repositories.QuizRepo;
 import com.quiz.services.QuizService;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
+import org.springframework.web.reactive.function.client.WebClient;
+import reactor.core.publisher.Flux;
 
 import java.util.List;
 import java.util.UUID;
@@ -18,11 +20,13 @@ public class QuizServiceImpl implements QuizService {
     QuizRepo quizRepo;
     RestTemplate restTemplate;
 
-    public QuizServiceImpl(QuizRepo quizRepo, RestTemplate restTemplate) {
+    WebClient webClient;
+
+    public QuizServiceImpl(QuizRepo quizRepo, RestTemplate restTemplate, WebClient webClient) {
         this.quizRepo = quizRepo;
         this.restTemplate = restTemplate;
+        this.webClient = webClient;
     }
-
 
     @Override
     public Quiz createQuiz(Quiz quiz) {
@@ -35,8 +39,12 @@ public class QuizServiceImpl implements QuizService {
     @Override
     public Quiz getQuizByID(String quizID) {
         Quiz quiz =quizRepo.findById(quizID).orElseThrow(()-> new RuntimeException("Quiz not found"));
-        List<Question> questions=restTemplate.getForObject(AppConstants.questionServiceUrl+"quiz/"+quizID,List.class);
-        quiz.setQuestions(questions);
+      //  List<Question> questions=restTemplate.getForObject(AppConstants.questionServiceUrl+"quiz/"+quizID,List.class);
+        Flux<Question> qs=webClient.get()
+                .uri("/quiz/"+quizID)
+                .retrieve()
+                .bodyToFlux(Question.class);
+        quiz.setQuestions(qs.toStream().collect(Collectors.toList()));
         return quiz;
     }
 
